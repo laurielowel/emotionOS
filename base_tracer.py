@@ -1,6 +1,3 @@
-# emotion_core/tracer/base_tracer.py
-
-
 """
 EmotionOS: Base Tracer Module
 
@@ -14,6 +11,9 @@ import matplotlib.pyplot as plt
 from typing import Dict, List, Optional, Tuple, Union
 from abc import ABC, abstractmethod
 import logging
+import time
+from datetime import datetime
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -376,7 +376,7 @@ class EmotionTracer(ABC):
     def _plot_emotion_trajectory(self, ax, states: List[Dict[str, float]]) -> None:
         """Plot the trajectory of emotional states."""
         # Get common emotions across all states
-        common_emotions = set.intersection(*[set(state.keys()) for state in states])
+        common_emotions = set.intersection(*[set(state.keys()) for state in states]) if states else set()
         
         # If no common emotions, use all emotions
         if not common_emotions:
@@ -395,4 +395,279 @@ class EmotionTracer(ABC):
         # Plot each emotion dimension
         x = range(len(states))
         for emotion in top_emotions:
-            y = [state.get(
+            y = [state.get(emotion, 0) for state in states]
+            ax.plot(x, y, 'o-', label=emotion.capitalize())
+        
+        ax.set_xlabel('Reasoning Step')
+        ax.set_ylabel('Emotion Intensity')
+        ax.set_title('Emotional Trajectory')
+        ax.set_ylim(0, 1)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+    
+    def _plot_transitions(self, ax, transitions: List[Dict]) -> None:
+        """Plot the emotional transitions between states."""
+        magnitudes = [t["magnitude"] for t in transitions]
+        
+        ax.bar(range(len(magnitudes)), magnitudes, color='skyblue')
+        ax.set_xlabel('Transition')
+        ax.set_ylabel('Magnitude of Change')
+        ax.set_title('Emotional Transitions')
+        ax.set_ylim(0, max(magnitudes) * 1.2 if magnitudes else 1)
+        ax.grid(True, alpha=0.3)
+        
+        # Annotate significant shifts for the most dramatic transition
+        if transitions:
+            max_idx = magnitudes.index(max(magnitudes))
+            significant = transitions[max_idx]["significant_shifts"]
+            
+            annotation = "\n".join([f"{k}: {v:.2f}" for k, v in 
+                                   list(sorted(significant.items(), 
+                                              key=lambda x: abs(x[1]), 
+                                              reverse=True))[:3]])
+            
+            if annotation:
+                ax.annotate(
+                    f"Top shifts:\n{annotation}",
+                    xy=(max_idx, magnitudes[max_idx]),
+                    xytext=(max_idx, magnitudes[max_idx] * 0.8),
+                    ha='center',
+                    bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.8)
+                )
+    
+    def _plot_hesitations(self, ax, hesitations: List[Dict[str, float]]) -> None:
+        """Plot hesitation patterns."""
+        # Extract hesitation types and values
+        hesitation_types = [k for k in hesitations[0].keys() if k != "overall"]
+        x = range(len(hesitations))
+        
+        # Plot each hesitation type
+        width = 0.8 / len(hesitation_types)
+        for i, h_type in enumerate(hesitation_types):
+            values = [h.get(h_type, 0) for h in hesitations]
+            ax.bar([x_val + i * width for x_val in x], values, width=width, 
+                   label=h_type.capitalize())
+        
+        # Plot overall hesitation as a line
+        overall = [h.get("overall", 0) for h in hesitations]
+        ax2 = ax.twinx()
+        ax2.plot(x, overall, 'r-', label='Overall', linewidth=2)
+        
+        ax.set_xlabel('Reasoning Step')
+        ax.set_ylabel('Hesitation Intensity')
+        ax2.set_ylabel('Overall Hesitation')
+        ax.set_title('Hesitation Patterns')
+        ax.set_ylim(0, 1)
+        ax2.set_ylim(0, 1)
+        
+        # Combined legend
+        lines, labels = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax.legend(lines + lines2, labels + labels2, loc='upper left')
+        
+        ax.grid(True, alpha=0.3)
+    
+    def _plot_residue(self, ax, residue: Dict) -> None:
+        """Plot emotional residue."""
+        if not residue or "consistency" not in residue:
+            ax.text(0.5, 0.5, "No residue data available", 
+                   ha='center', va='center', transform=ax.transAxes)
+            return
+        
+        # Extract persistent and oscillating emotions
+        persistent = residue.get("persistent_emotions", {})
+        oscillating = residue.get("oscillating_emotions", {})
+        
+        # Prepare data for plotting
+        emotions = []
+        means = []
+        stds = []
+        colors = []
+        
+        # Add persistent emotions
+        for emotion, data in persistent.items():
+            emotions.append(emotion)
+            means.append(data["mean"])
+            stds.append(data["std"])
+            colors.append('green')
+        
+        # Add oscillating emotions
+        for emotion, data in oscillating.items():
+            if emotion not in emotions:  # Avoid duplicates
+                emotions.append(emotion)
+                means.append(data["mean"])
+                stds.append(data["std"])
+                colors.append('red')
+        
+        # Sort by mean intensity
+        sorted_indices = np.argsort(means)[::-1]
+        emotions = [emotions[i] for i in sorted_indices]
+        means = [means[i] for i in sorted_indices]
+        stds = [stds[i] for i in sorted_indices]
+        colors = [colors[i] for i in sorted_indices]
+        
+        # Limit to top emotions for readability
+        limit = min(8, len(emotions))
+        emotions = emotions[:limit]
+        means = means[:limit]
+        stds = stds[:limit]
+        colors = colors[:limit]
+        
+        y_pos = range(len(emotions))
+        
+        # Plot horizontal bars with error bars
+        bars = ax.barh(y_pos, means, xerr=stds, color=colors, alpha=0.7)
+        
+        # Add labels
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels([e.capitalize() for e in emotions])
+        ax.set_xlabel('Mean Intensity (with StdDev)')
+        ax.set_title('Emotional Residue')
+        
+        # Add legend
+        from matplotlib.patches import Patch
+        persistent_patch = Patch(color='green', label='Persistent')
+        oscillating_patch = Patch(color='red', label='Oscillating')
+        ax.legend(handles=[persistent_patch, oscillating_patch])
+        
+        ax.grid(True, alpha=0.3)
+        ax.set_xlim(0, 1)
+    
+    def _get_timestamp(self) -> str:
+        """Get a formatted timestamp for the trace."""
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    def save_trace(self, trace: Dict, filepath: str) -> None:
+        """
+        Save an affective drift trace to a file.
+        
+        Args:
+            trace: The trace to save
+            filepath: Path to save the trace to
+        """
+        try:
+            with open(filepath, 'w') as f:
+                json.dump(trace, f, indent=2)
+            logger.info(f"Trace saved to {filepath}")
+        except Exception as e:
+            logger.error(f"Failed to save trace: {e}")
+    
+    def load_trace(self, filepath: str) -> Dict:
+        """
+        Load an affective drift trace from a file.
+        
+        Args:
+            filepath: Path to load the trace from
+            
+        Returns:
+            The loaded trace
+        """
+        try:
+            with open(filepath, 'r') as f:
+                trace = json.load(f)
+            logger.info(f"Trace loaded from {filepath}")
+            return trace
+        except Exception as e:
+            logger.error(f"Failed to load trace: {e}")
+            return {}
+            
+    def detect_emotional_bifurcation(self, trace: Dict) -> Dict:
+        """
+        Detect emotional bifurcation points in the trace.
+        
+        Bifurcation points are where the emotional trajectory splits
+        dramatically, indicating a potential cognitive fork.
+        
+        Args:
+            trace: The affective drift trace to analyze
+            
+        Returns:
+            Dictionary of detected bifurcation points
+        """
+        if "transitions" not in trace or not trace["transitions"]:
+            return {"bifurcation_points": []}
+            
+        transitions = trace["transitions"]
+        magnitudes = [t["magnitude"] for t in transitions]
+        
+        # Find sharp changes in transition magnitude
+        bifurcation_points = []
+        
+        for i in range(1, len(magnitudes)):
+            # Calculate rate of change in magnitude
+            change_rate = abs(magnitudes[i] - magnitudes[i-1])
+            
+            # If change rate exceeds threshold, mark as bifurcation
+            if change_rate > 0.3:  # Threshold can be adjusted
+                bifurcation_points.append({
+                    "step": i,
+                    "magnitude_before": magnitudes[i-1],
+                    "magnitude_after": magnitudes[i],
+                    "change_rate": change_rate,
+                    "significant_shifts": transitions[i]["significant_shifts"]
+                })
+        
+        return {
+            "bifurcation_points": bifurcation_points,
+            "total_bifurcations": len(bifurcation_points)
+        }
+        
+    def extract_emotional_anchors(self, trace: Dict) -> Dict:
+        """
+        Extract emotional anchors from a trace.
+        
+        Emotional anchors are stable emotional patterns that the model
+        returns to throughout the reasoning process.
+        
+        Args:
+            trace: The affective drift trace to analyze
+            
+        Returns:
+            Dictionary of identified emotional anchors
+        """
+        if "emotional_states" not in trace or not trace["emotional_states"]:
+            return {"anchors": []}
+            
+        states = trace["emotional_states"]
+        
+        # Get all emotions present
+        all_emotions = set()
+        for state in states:
+            all_emotions.update(state.keys())
+            
+        anchors = []
+        
+        for emotion in all_emotions:
+            values = [state.get(emotion, 0) for state in states]
+            
+            # Compute statistics
+            mean = np.mean(values)
+            std = np.std(values)
+            min_val = min(values)
+            max_val = max(values)
+            
+            # Count returns to mean value
+            returns_to_mean = 0
+            for i in range(1, len(values)):
+                if (values[i-1] < mean and values[i] >= mean) or \
+                   (values[i-1] > mean and values[i] <= mean):
+                    returns_to_mean += 1
+            
+            # If emotion is relatively stable or returns to a mean value frequently
+            if (std < 0.15 and mean > 0.2) or returns_to_mean >= 2:
+                anchors.append({
+                    "emotion": emotion,
+                    "mean": mean,
+                    "std": std,
+                    "returns_to_mean": returns_to_mean,
+                    "stability": 1.0 - std,  # Higher value means more stable
+                    "significance": mean  # Higher mean value indicates significance
+                })
+        
+        # Sort by combination of stability and significance
+        anchors.sort(key=lambda x: x["stability"] * x["significance"], reverse=True)
+        
+        return {
+            "anchors": anchors[:5],  # Top 5 anchors
+            "total_anchors": len(anchors)
+        }
