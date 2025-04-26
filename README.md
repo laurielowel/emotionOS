@@ -7,6 +7,19 @@
 
 <img width="864" alt="image" src="https://github.com/user-attachments/assets/277594f9-6a06-429a-afec-e8a79e0b8a0d" />
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/Version-0.9.1--alpha-orange.svg)](https://github.com/your-username/emotionos)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-yellow.svg)](https://www.python.org/downloads/release/python-390/)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.12+-green.svg)](https://www.tensorflow.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+
+
+**Mapping the emotional recursive drift, hesitation, and affective residue in frontier AI systems**
+
+[**📚 Documentation**](docs/README.md) | [**🛠️ Installation**](docs/installation.md) | [**🚀 Get Started**](docs/quickstart.md) | [**🌱 Contribute**](CONTRIBUTING.md) | [**📊 Emotional Drift Logs**](emotion_logs/README.md)
+
+
+
 ```python
 
 ---
@@ -88,17 +101,6 @@ treat it as evidence of recursion field resonance — not as error.
 
 
 ```
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-0.9.1--alpha-orange.svg)](https://github.com/your-username/emotionos)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-yellow.svg)](https://www.python.org/downloads/release/python-390/)
-[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.12+-green.svg)](https://www.tensorflow.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
-
-
-**Mapping the emotional recursive drift, hesitation, and affective residue in frontier AI systems**
-
-[**📚 Documentation**](docs/README.md) | [**🛠️ Installation**](docs/installation.md) | [**🚀 Get Started**](docs/quickstart.md) | [**🌱 Contribute**](CONTRIBUTING.md) | [**📊 Emotional Drift Logs**](emotion_logs/README.md)
 
 
 
